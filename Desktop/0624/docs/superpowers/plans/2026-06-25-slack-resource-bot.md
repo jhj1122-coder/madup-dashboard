@@ -4,7 +4,7 @@
 
 **Goal:** 슬랙 #mkt_마케팅6팀의 출퇴근 워크플로우 스레드를 매일 파싱해 업무시간·리소스%·특별휴가를 자동 계산하고 구글 시트에 기록 + 슬랙 DM 발송
 
-**Architecture:** GitHub Actions cron(매일 08:00 KST, 매주 월 09:00 KST)이 Python 스크립트를 실행한다. 스크립트는 Slack API로 전일 스레드 리플을 수집 → 업무시간·리소스 계산 → 구글 시트 기록 → 특별휴가 해당자 DM 발송 순서로 동작한다.
+**Architecture:** GitHub Actions cron 2개로 운영한다. ① 매일 08:00 KST: 전일 데이터 파싱 → 리소스기록 시트 기록 + 특휴 DM. ② 매주 월요일 08:00 KST: 지난주 리소스% → 주간시트 F열 기입 + 전원 주간 요약 DM (하나의 weekly 잡에서 순서대로 실행).
 
 **Tech Stack:** Python 3.11, slack_sdk, gspread, google-auth, pytest, GitHub Actions
 
@@ -1080,10 +1080,12 @@ main.py `__main__` 블록에 분기 추가:
         run_friday()
 ```
 
-- [ ] **Step 4: friday.yml 작성**
+- [ ] **Step 4: weekly.yml 수정 — F열 기입 + DM 통합**
+
+기존 `weekly.yml`을 아래로 교체 (09:00 → 08:00, weekly + friday 모드 순서 실행):
 
 ```yaml
-name: Monday Resource Sheet Update
+name: Weekly Resource Summary
 
 on:
   schedule:
@@ -1102,7 +1104,16 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt
-      - run: python main.py friday
+      - name: F열 기입 (지난주 리소스%)
+        run: python main.py friday
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          RESOURCE_SHEET_ID: ${{ secrets.RESOURCE_SHEET_ID }}
+      - name: 주간 요약 DM 발송
+        run: python main.py weekly
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
