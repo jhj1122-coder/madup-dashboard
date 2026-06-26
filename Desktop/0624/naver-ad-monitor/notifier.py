@@ -27,4 +27,6 @@ def send_slack_alert(keyword: str, env: str, rank: Optional[int], collected_at: 
     if not webhook_url:
         return
     message = build_alert_message(keyword, env, rank, collected_at)
-    requests.post(webhook_url, json={"text": message}, timeout=10)
+    response = requests.post(webhook_url, json={"text": message}, timeout=10)
+    if response.status_code != 200:
+        print(f"[notifier] Slack webhook error: {response.status_code} {response.text}")

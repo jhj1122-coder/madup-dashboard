@@ -17,7 +17,12 @@ def run() -> None:
     for keyword in KEYWORDS:
         for env in ENVIRONMENTS:
             print(f"[{collected_at}] 수집 중: {keyword} / {env}")
-            items: list[AdItem] = scrape_keyword(keyword, env)
+            try:
+                items: list[AdItem] = scrape_keyword(keyword, env)
+            except Exception as e:
+                print(f"[main] scrape failed {keyword}/{env}: {e}")
+                send_slack_alert(keyword, env, None, collected_at)
+                continue
 
             samsung_rank: Optional[int] = None
 
