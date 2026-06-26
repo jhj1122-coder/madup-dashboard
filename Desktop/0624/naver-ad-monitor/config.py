@@ -29,3 +29,5 @@ MOBILE_UA = (
 )
 
 NAVER_SEARCH_URL = "https://search.naver.com/search.naver?where=nexearch&query={keyword}"
+
+CHROME_EXECUTABLE_PATH = "C:/Program Files/Google/Chrome/Application/chrome.exe"

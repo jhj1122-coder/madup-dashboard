@@ -1,8 +1,9 @@
 # scraper.py
+import os
 from dataclasses import dataclass
 from typing import Optional
 from playwright.sync_api import sync_playwright, Locator, Page
-from config import PC_UA, MOBILE_UA, NAVER_SEARCH_URL
+from config import PC_UA, MOBILE_UA, NAVER_SEARCH_URL, CHROME_EXECUTABLE_PATH
 
 
 @dataclass
@@ -60,7 +61,8 @@ def _extract_ad_item(locator: Locator, rank: int) -> Optional[AdItem]:
             display_url=display_url,
             screenshot_bytes=screenshot_bytes,
         )
-    except Exception:
+    except Exception as e:
+        print(f"[scraper] ad item parse failed at rank {rank}: {e}")
         return None
 
 
@@ -95,18 +97,14 @@ def _get_ad_container(page: Page) -> Optional[Locator]:
     return None
 
 
-_CHROME_PATH = "C:/Program Files/Google/Chrome/Application/chrome.exe"
-
-
 def scrape_keyword(keyword: str, env: str) -> list[AdItem]:
-    import os
     is_mobile = env == "모바일"
     ua = MOBILE_UA if is_mobile else PC_UA
 
     with sync_playwright() as p:
         launch_kwargs = dict(headless=True, args=["--no-sandbox"])
-        if os.path.exists(_CHROME_PATH):
-            launch_kwargs["executable_path"] = _CHROME_PATH
+        if os.path.exists(CHROME_EXECUTABLE_PATH):
+            launch_kwargs["executable_path"] = CHROME_EXECUTABLE_PATH
         browser = p.chromium.launch(**launch_kwargs)
         context = browser.new_context(
             user_agent=ua,
@@ -117,11 +115,11 @@ def scrape_keyword(keyword: str, env: str) -> list[AdItem]:
         page.goto(url, wait_until="networkidle", timeout=30000)
         page.wait_for_timeout(2000)
 
-        container = _get_ad_container(page)
-        if container is None:
+        try:
+            container = _get_ad_container(page)
+            if container is None:
+                return []
+            return parse_ad_items(container)
+        finally:
+            context.close()
             browser.close()
-            return []
-
-        items = parse_ad_items(container)
-        browser.close()
-        return items
